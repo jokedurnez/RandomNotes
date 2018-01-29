@@ -21,6 +21,7 @@ This notebook was originally developed for a short course for (graduate level) b
 ## Data
 
 The data for this workshop are the [CNP data (UCLA Consortium for Neuropsychiatric Phenomics LA5c Study) - revision 1.0.5](https://openfmri.org/dataset/ds000030/), available on openfmri with a PPDL license.
+We will use the preprocessed data that is available on openfmri (preprocessed using [fmriprep](https://github.com/poldracklab/fmriprep)).  On github, there are 2 python scripts available (in the preparation directory) to extract time series from the data, in order to avoid overloading wifi and losing time to get the data during the tutorial.  Ideally, the instructor ran those scripts and provided the extracted time series for you.
 
 # Working with fMRI data using R
 
