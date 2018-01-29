@@ -1,0 +1,284 @@
+---
+title: "Correlated Regressors"
+author: "Joke Durnez"
+date: "1/24/2018"
+output:
+  html_document: 
+    toc: true
+    theme: united
+    toc_depth: 3
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Motivation
+
+We have an fMRI design where we're interested in the contrast between two regressors.  After optimising the design, we end up with negatively correlated regressors.  Negatively correlated regressors are a bad thing for linear models: they increase the variance of the estimators.  So why does an optimisation result in high anticorrelations?  Well, in this case we are only interested in the contrast between the two regressors.  Negatively correlated regressors are only problematic if we're interested in the estimates of the regressors, **not** if we're only interested in the contrast.  Even more: negatively correlated regressors are a positive thing in [1,-1] contrasts.  Let's look at a simulation.
+
+**Intuitive example**
+
+Here's a very intuitive example.  If you want to measure the influence of IQ on parental attachment, you want to have the extremes in your sample: either very low or very high IQ.  If you'd include only people +/- 100, you're looking for a tiny effect and you won't learn as much from these 'average' people.  In statistical terms, this means you want to have as much variance in your design as possible.
+
+Now imagine you're interested in the influence of the **difference** in IQ between a parent and their kid and their attachment.  In this case, you want to include as much as people with large differences: smart parent / less smart kid and the opposite.  Families where the difference is small are not going to tell you much about the influence of that difference.  Like before, you want to increase the variance of the variable of interest.  Only in this case, the variable of interest is the difference, and it's maximised by increasing the anti-correlations.
+
+# Simulation
+
+First we'll make a few functions to simulate data and model the data using the contrasts (using the `multcomp` library).
+
+## Define and illustrate functions to simulate and model
+
+### Generate data
+
+```{r simulation}
+library(MASS)
+simulate <- function(correlation,ntp,betas){
+  means <- c(0,0)
+  Sigma <- matrix(c(1,correlation,correlation,1),nrow=2)
+  regressors <- mvrnorm(n=ntp,means,Sigma)
+  data <- data.frame(regressors)
+  data$signal <- betas[1]*data$X1 + betas[2]*data$X2 + rnorm(ntp,0,1)
+  data$index <- seq(ntp)
+  data
+}
+
+# the data
+data <- simulate(correlation = -0.8, ntp = 100, betas = c(0.5,-0.5))
+head(data)
+# the correlation matrix
+print(cor(data[,1:2]))
+```
+
+In the figure below, we can clearly see the high anticorrelations.
+
+```{r}
+library(ggplot2)
+library(ggthemes)
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+ggplot(data,aes(x=index)) +
+  geom_line(aes(y=X1),col=cbPalette[2]) +
+  geom_line(aes(y=X2),col=cbPalette[3]) +
+  scale_fill_manual(values=cbPalette) +
+  theme_minimal()
+```
+
+### Model data
+
+Let's also define a function to compute the contrast:
+
+```{r message=FALSE, results='hide',warning=FALSE}
+library(multcomp)
+library(viridis)
+```
+
+```{r contrast}
+lm_contrast <- function(data,contrast){
+  fit <- lm(signal~X1+X2, data=data)
+  cfit <- glht(fit,linfct=contrast)
+  tstat <- summary(cfit)$test$tstat
+  tstat
+}
+
+# for example...  
+contrast <- matrix(c(0,1,-1),nrow=1)
+print(contrast)
+tval <- lm_contrast(data,contrast)
+print(paste("The resulting T-value is",tval))
+```
+
+While we're at it, we can also make a new function to compute the T-statistic from a model with 1 regressor: the difference between the two anticorrelated regressors:
+
+```{r diff}
+lm_diff <- function(data){
+  data$Xdif <- data$X1-data$X2
+  dfit <- lm(signal~Xdif, data=data)
+  tstat <- summary(dfit)$coefficients[2,3]
+  tstat
+}
+
+# for example...  
+tval <- lm_diff(data)
+print(paste("The resulting T-value is",tval))
+```
+
+## Simulations
+
+### Simulation 1: anticorrelations and contrast (1,-1)
+
+First set parameters:
+```{r}
+cors <- seq(from=-0.1,to=-0.9,by=-0.1)
+nsim <- 100
+ntp <- 100
+betas <- c(0.5,-0.5)
+contrast <- matrix(c(0,1,-1),nrow=1)
+```
+
+Now simulate the data within a loop of correlation values.
+```{r}
+results <- data.frame(
+  correlation=numeric(length(cors)*nsim),
+  simulation=numeric(length(cors)*nsim),
+  Tc=numeric(length(cors)*nsim),
+  Td = numeric(length(cors)*nsim)
+)
+
+k <- 0
+for (correlation in cors){
+  for (s in 1:nsim){
+    k = k+1
+    data <- simulate(correlation=correlation,ntp=ntp,betas = betas)
+    results$correlation[k] <- correlation
+    results$simulation[k] <- s
+    results$Tc[k] <- lm_contrast(data,contrast)
+    results$Td[k] <- lm_diff(data)
+  }
+  print(paste("mean of correlation ",correlation," = ",mean(results$Tc[results$correlation==correlation])))
+}
+```
+
+
+Let's take a look at the (alternative) distribution of the obtained T-values wrt the correlations.
+
+```{r}
+results$correlation_factor <- factor(results$correlation)
+
+ggplot(results,aes(x=Tc,fill=correlation_factor,aes(factor(correlation_factor)))) +
+  geom_histogram(aes(y=..count..,fill=correlation_factor),binwidth=0.5,alpha=0.6,position='identity') +
+  scale_fill_brewer(palette='YlGnBu') +
+  labs(x='E(T)',y='Density',title='')
+```
+
+### Simulation 2: anticorrelations and contrast (1,0)
+
+Now it's also fairly easy to take a look at when we're only interested in the main effect (regressor vs baseline):
+
+```{r}
+contrast <- matrix(c(0,1,0),nrow=1)
+
+results_main <- data.frame(
+  correlation=numeric(length(cors)*nsim),
+  simulation=numeric(length(cors)*nsim),
+  Tc=numeric(length(cors)*nsim))
+
+k <- 0
+for (correlation in cors){
+  for (s in 1:nsim){
+    k = k+1
+    data <- simulate(correlation=correlation,ntp=ntp,betas = betas)
+    results_main$correlation[k] <- correlation
+    results_main$simulation[k] <- s
+    results_main$Tc[k] <- lm_contrast(data,contrast)
+  }
+  print(paste("mean of correlation ",correlation," = ",mean(results_main$Tc[results_main$correlation==correlation])))
+}
+
+results_main$correlation_factor <- factor(results_main$correlation)
+
+ggplot(results_main,aes(x=Tc,fill=correlation_factor,aes(factor(correlation_factor)))) +
+  geom_histogram(aes(y=..count..,fill=correlation_factor),binwidth=0.5,alpha=0.6,position='identity') +
+  scale_fill_brewer(palette='YlGnBu') +
+  labs(x='E(T)',y='Density',title='') +
+    theme_minimal()
+
+```
+
+### Modeling with (1-1) contrast vs modeling with difference (x1-x2)
+
+We discussed whether it would make a difference if we model the data using contrasts, vs if we model directly the difference between the regressors.  Turns out there's not much of a difference.
+
+
+```{r}
+ggplot(results,aes(x=Tc,y=Td,color=correlation,aes(correlation))) +
+  geom_point() +
+  scale_colour_viridis() +
+  labs(x='T contrast',y='T difference',title='')
+
+```
+
+# The math
+
+This is how the T-statistic is computed when using contrasts:
+
+$$
+T = \frac{c'\widehat{\beta}}{\sqrt{\sigma^2 c' (X'X)^{-1}c}}
+$$
+
+Let's especially look at this factor $\sqrt{c'(X'X)^{-1}c}$, as this is the variable influenced by the design (i.e. the only one we can change).  We want the T-statistic to be as large as possible, so **we want this factor to be as small as possible**.  Let's write it out for our specific example, with two regressors and [1,-1] contrast. $x_1$ and $x_2$ are the two regressors (in $X$). $\sigma_{x_i}^2$ is the variance of $x_i$, white $\sigma_{x_1x_2}$ is the covariance between the regressors.
+
+#### Inverse of $(X'X)^{-1}$ 
+(note that I dropped the square root for easier reading)
+
+\begin{align}
+c'(X'X)^{-1}c &= [1,-1]
+  \begin{bmatrix}
+    \sigma_{x_1}^2 & \sigma_{x_1x_2} \\
+    \sigma_{x_1x_2} & \sigma_{x_2}^2
+  \end{bmatrix}^{-1}
+  \begin{bmatrix}1 \\ -1\end{bmatrix} \\
+&= [1,-1] \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2}
+\begin{bmatrix}
+\sigma_{x_2}^2 & -\sigma_{x_1x_2} \\
+-\sigma_{x_1x_2} & \sigma_{x_1}^2
+\end{bmatrix}\begin{bmatrix}1 \\ -1\end{bmatrix}
+\end{align}
+
+#### Work out contrasts
+
+\begin{align}
+c'(X'X)^{-1}c &= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2}
+\left[ [1,-1]
+\begin{bmatrix}
+\sigma_{x_2}^2 & -\sigma_{x_1x_2} \\
+-\sigma_{x_1x_2} & \sigma_{x_1}^2
+\end{bmatrix}\begin{bmatrix}1 \\ -1\end{bmatrix} \right] \\
+
+&= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2}
+\begin{bmatrix}
+\sigma_{x_2}^2 + \sigma_{x_1x_2} & -\sigma_{x_1x_2}-\sigma_{x_1}^2
+\end{bmatrix}
+\begin{bmatrix}1 \\ -1\end{bmatrix} \\
+
+&= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2}
+( \sigma_{x_2}^2 + \sigma_{x_1x_2}  + \sigma_{x_1x_2}+ \sigma_{x_1}^2) \\
+\\
+
+&= \frac{\sigma_{x_2}^2 +  \sigma_{x_1}^2 + 2\sigma_{x_1x_2}  }{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2} \\
+\end{align}
+
+Remember that we want this factor to be as small as possible.  Given that we have $\sigma_{x_1x_2}$ in the denominator, a large negative correlation will effectively maximise the $T$-statistic and increase the power.
+
+#### Let's look at the [1,0] contrast
+
+\begin{align}
+c'(X'X)^{-1}c &= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2}
+\left[ [1,0]
+\begin{bmatrix}
+\sigma_{x_2}^2 & -\sigma_{x_1x_2} \\
+-\sigma_{x_1x_2} & \sigma_{x_1}^2
+\end{bmatrix}\begin{bmatrix}1 \\ 0\end{bmatrix} \right] \\
+
+&= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2}
+\begin{bmatrix}
+\sigma_{x_2}^2 & -\sigma_{x_1x_2}
+\end{bmatrix}
+\begin{bmatrix}1 \\ 0\end{bmatrix} \\
+
+&= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2} 
+ \sigma_{x_2}^2  \\
+\\
+
+&= \frac{\sigma_{x_2}^2}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2} \\
+
+&= \frac{1}{\sigma_{x_1}^2 - 2\frac{\sigma_{x_1x_2}^2}{\sigma^2_{x_2}}}
+\end{align}
+
+This means the T-statistic will look like this:
+
+\begin{align}
+T &= (c'\widehat\beta)\sqrt{ \sigma^2_{x_1} - 2\frac{\sigma_{x_1x_2}^2}{\sigma^2_{x_2}} }
+\end{align}
+
+Here we cannot simply work out the square root of the quadratic $\sigma^2_{x_1x_2}.  As such whether it is a positive or a negative correlation, increased correlation will decrease the power.
