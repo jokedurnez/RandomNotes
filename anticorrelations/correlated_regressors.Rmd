@@ -200,85 +200,98 @@ ggplot(results,aes(x=Tc,y=Td,color=correlation,aes(correlation))) +
 
 # The math
 
-This is how the T-statistic is computed when using contrasts:
+<!-- This is how the T-statistic is computed when using contrasts: -->
 
-$$
-T = \frac{c'\widehat{\beta}}{\sqrt{\sigma^2 c' (X'X)^{-1}c}}
-$$
+<!-- $$ -->
+<!-- T = \frac{c'\widehat{\beta}}{\sqrt{\sigma^2 c' (X'X)^{-1}c}} -->
+<!-- $$ -->
 
-Let's especially look at this factor $\sqrt{c'(X'X)^{-1}c}$, as this is the variable influenced by the design (i.e. the only one we can change).  We want the T-statistic to be as large as possible, so **we want this factor to be as small as possible**.  Let's write it out for our specific example, with two regressors and [1,-1] contrast. $x_1$ and $x_2$ are the two regressors (in $X$). $\sigma_{x_i}^2$ is the variance of $x_i$, white $\sigma_{x_1x_2}$ is the covariance between the regressors.
+<!-- Let's especially look at this factor $\sqrt{c'(X'X)^{-1}c}$, as this is the variable influenced by the design (i.e. the only one we can change).  We want the T-statistic to be as large as possible, so **we want this factor to be as small as possible**.  Let's write it out for our specific example, with two regressors and [1,-1] contrast. $x_1$ and $x_2$ are the two regressors (in $X$). $\sigma_{x_i}^2$ is the variance of $x_i$, white $\sigma_{x_1x_2}$ is the covariance between the regressors. -->
 
-#### Inverse of $(X'X)^{-1}$ 
-(note that I dropped the square root for easier reading)
+<!-- 1. Inverse of $(X'X)^{-1}$  -->
+<!-- (note that I dropped the square root for easier reading) -->
 
-\begin{align}
-c'(X'X)^{-1}c &= [1,-1]
-  \begin{bmatrix}
-    \sigma_{x_1}^2 & \sigma_{x_1x_2} \\
-    \sigma_{x_1x_2} & \sigma_{x_2}^2
-  \end{bmatrix}^{-1}
-  \begin{bmatrix}1 \\ -1\end{bmatrix} \\
-&= [1,-1] \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2}
-\begin{bmatrix}
-\sigma_{x_2}^2 & -\sigma_{x_1x_2} \\
--\sigma_{x_1x_2} & \sigma_{x_1}^2
-\end{bmatrix}\begin{bmatrix}1 \\ -1\end{bmatrix}
-\end{align}
+<!-- \begin{align} -->
+<!-- c'(X'X)^{-1}c &= [1,-1] -->
+<!--   \begin{bmatrix} -->
+<!--     \sigma_{x_1}^2 & \sigma_{x_1x_2} \\ -->
+<!--     \sigma_{x_1x_2} & \sigma_{x_2}^2 -->
+<!--   \end{bmatrix}^{-1} -->
+<!--   \begin{bmatrix}1 \\ -1\end{bmatrix} \\ -->
+<!-- &= [1,-1] \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2} -->
+<!-- \begin{bmatrix} -->
+<!-- \sigma_{x_2}^2 & -\sigma_{x_1x_2} \\ -->
+<!-- -\sigma_{x_1x_2} & \sigma_{x_1}^2 -->
+<!-- \end{bmatrix}\begin{bmatrix}1 \\ -1\end{bmatrix} -->
+<!-- \end{align} -->
 
-#### Work out contrasts
+<!-- 2. Work out contrasts -->
 
-\begin{align}
-c'(X'X)^{-1}c &= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2}
-\left[ [1,-1]
-\begin{bmatrix}
-\sigma_{x_2}^2 & -\sigma_{x_1x_2} \\
--\sigma_{x_1x_2} & \sigma_{x_1}^2
-\end{bmatrix}\begin{bmatrix}1 \\ -1\end{bmatrix} \right] \\
+<!-- \begin{align} -->
+<!-- c'(X'X)^{-1}c &= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2} -->
+<!-- \left[ [1,-1] -->
+<!-- \begin{bmatrix} -->
+<!-- \sigma_{x_2}^2 & -\sigma_{x_1x_2} \\ -->
+<!-- -\sigma_{x_1x_2} & \sigma_{x_1}^2 -->
+<!-- \end{bmatrix}\begin{bmatrix}1 \\ -1\end{bmatrix} \right] \\ -->
 
-&= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2}
-\begin{bmatrix}
-\sigma_{x_2}^2 + \sigma_{x_1x_2} & -\sigma_{x_1x_2}-\sigma_{x_1}^2
-\end{bmatrix}
-\begin{bmatrix}1 \\ -1\end{bmatrix} \\
+<!-- &= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2} -->
+<!-- \begin{bmatrix} -->
+<!-- \sigma_{x_2}^2 + \sigma_{x_1x_2} & -\sigma_{x_1x_2}-\sigma_{x_1}^2 -->
+<!-- \end{bmatrix} -->
+<!-- \begin{bmatrix}1 \\ -1\end{bmatrix} \\ -->
 
-&= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2}
-( \sigma_{x_2}^2 + \sigma_{x_1x_2}  + \sigma_{x_1x_2}+ \sigma_{x_1}^2) \\
-\\
+<!-- &= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2} -->
+<!-- ( \sigma_{x_2}^2 + \sigma_{x_1x_2}  + \sigma_{x_1x_2}+ \sigma_{x_1}^2) \\ -->
+<!-- \\ -->
 
-&= \frac{\sigma_{x_2}^2 +  \sigma_{x_1}^2 + 2\sigma_{x_1x_2}  }{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2} \\
-\end{align}
+<!-- &= \frac{\sigma_{x_2}^2 +  \sigma_{x_1}^2 + 2\sigma_{x_1x_2}  }{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2} \\ -->
+<!-- \end{align} -->
 
-Remember that we want this factor to be as small as possible.  Given that we have $\sigma_{x_1x_2}$ in the denominator, a large negative correlation will effectively maximise the $T$-statistic and increase the power.
+<!-- 3. Multiply numerator and denominator with \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2} -->
 
-#### Let's look at the [1,0] contrast
+<!-- \begin{align} -->
+<!-- c'(X'X)^{-1}c &= \left[ \frac{\sigma_{x_1}^2 + \sigma_{x_2}^2}{\sigma_{x_1}^2\sigma_{x_2}^2} + \frac{2\sigma_{x_1x_2}}{\sigma_{x_1}^2\sigma_{x_2}^2} \right] \bigg/ \left[ -->
+<!-- \frac{\sigma_{x_1}^2\sigma_{x_2}^2}{\sigma_{x_1}^2\sigma_{x_2}^2} - \frac{\sigma_{x_1x_2}^2}{\sigma_{x_1}^2\sigma_{x_2}^2} \right] \\ -->
 
-\begin{align}
-c'(X'X)^{-1}c &= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2}
-\left[ [1,0]
-\begin{bmatrix}
-\sigma_{x_2}^2 & -\sigma_{x_1x_2} \\
--\sigma_{x_1x_2} & \sigma_{x_1}^2
-\end{bmatrix}\begin{bmatrix}1 \\ 0\end{bmatrix} \right] \\
+<!-- &= \left[ \frac{\sigma_{x_1}^2 + \sigma_{x_2}^2}{\sigma_{x_1}^2\sigma_{x_2}^2} + \frac{2}{\sigma_{x_1}\sigma_{x_2}}\rho \right] \bigg/ (1-\rho^2) \\ -->
 
-&= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2}
-\begin{bmatrix}
-\sigma_{x_2}^2 & -\sigma_{x_1x_2}
-\end{bmatrix}
-\begin{bmatrix}1 \\ 0\end{bmatrix} \\
+<!-- &= \frac{\frac{\sigma_{x_1}^2 + \sigma_{x_2}^2}{\sigma_{x_1}^2\sigma_{x_2}^2} }{(1-\rho^2)} + \frac{2}{\sigma_{x_1}\sigma_{x_2}}\frac{\rho}{1-\rho^2} -->
+<!-- \end{align} -->
 
-&= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2} 
- \sigma_{x_2}^2  \\
-\\
+<!-- The first component is increasing with an increasing value of $\rho$ only if the numerator is smaller than 1, which is necessarily true because $\sigma_{x_1}^2>1$ and $\sigma_{x_2}^2>1$ -->
 
-&= \frac{\sigma_{x_2}^2}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2} \\
+<!-- Remember that we want this factor to be as small as possible.  Given that we have $\sigma_{x_1x_2}$ in the denominator, a large negative correlation will effectively maximise the $T$-statistic and increase the power. -->
 
-&= \frac{1}{\sigma_{x_1}^2 - 2\frac{\sigma_{x_1x_2}^2}{\sigma^2_{x_2}}}
-\end{align}
+<!-- #### Let's look at the [1,0] contrast -->
 
-This means the T-statistic will look like this:
+<!-- \begin{align} -->
+<!-- c'(X'X)^{-1}c &= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2} -->
+<!-- \left[ [1,0] -->
+<!-- \begin{bmatrix} -->
+<!-- \sigma_{x_2}^2 & -\sigma_{x_1x_2} \\ -->
+<!-- -\sigma_{x_1x_2} & \sigma_{x_1}^2 -->
+<!-- \end{bmatrix}\begin{bmatrix}1 \\ 0\end{bmatrix} \right] \\ -->
 
-\begin{align}
-T &= (c'\widehat\beta)\sqrt{ \sigma^2_{x_1} - 2\frac{\sigma_{x_1x_2}^2}{\sigma^2_{x_2}} }
-\end{align}
+<!-- &= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2} -->
+<!-- \begin{bmatrix} -->
+<!-- \sigma_{x_2}^2 & -\sigma_{x_1x_2} -->
+<!-- \end{bmatrix} -->
+<!-- \begin{bmatrix}1 \\ 0\end{bmatrix} \\ -->
 
-Here we cannot simply work out the square root of the quadratic $\sigma^2_{x_1x_2}.  As such whether it is a positive or a negative correlation, increased correlation will decrease the power.
+<!-- &= \frac{1}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2}  -->
+<!--  \sigma_{x_2}^2  \\ -->
+<!-- \\ -->
+
+<!-- &= \frac{\sigma_{x_2}^2}{\sigma_{x_1}^2\sigma_{x_2}^2 - \sigma_{x_1x_2}^2} \\ -->
+
+<!-- &= \frac{1}{\sigma_{x_1}^2 - 2\frac{\sigma_{x_1x_2}^2}{\sigma^2_{x_2}}} -->
+<!-- \end{align} -->
+
+<!-- This means the T-statistic will look like this: -->
+
+<!-- \begin{align} -->
+<!-- T &= (c'\widehat\beta)\sqrt{ \sigma^2_{x_1} - 2\frac{\sigma_{x_1x_2}^2}{\sigma^2_{x_2}} } -->
+<!-- \end{align} -->
+
+<!-- Here we cannot simply work out the square root of the quadratic $\sigma^2_{x_1x_2}.  As such whether it is a positive or a negative correlation, increased correlation will decrease the power. -->
