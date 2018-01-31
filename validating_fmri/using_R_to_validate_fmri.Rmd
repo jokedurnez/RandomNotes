@@ -31,7 +31,7 @@ MRI is an imaging technique, with which we can take scans of muscles, bones, bra
 
 Imagine a subject listening to broadband noise for 15 seconds, and then listening to silence for 15 seconds, and repeat this for 10 times while taking brain scans every 3 seconds.  Afterwards, we can compare the scans during silence with the scans during music, and end up with an image like the following from [Okada et al., 2013](http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0068959).  The brain image in the back is a structural MRI, the red blobs are the parts of the brain that show a significant difference between the two conditions.
 
-![](fig/auditory.png)
+![](fig/auditory.png){ width=250px }
 
 In reality, the analysis of the data is much more complex than 'comparing images from two conditions' and there exist thousands of ways to analyse the data.  During this lesson, we will touch a few very basic methods, but a more thorough discussion is outside the scope.  We will assume that all the data is preprocessed, which means that:
 - the data are corrected for motion
@@ -80,7 +80,7 @@ This shows some information that is stored in the "header" of the file.  For exa
 
 Another interesting function is the visualisation of nifti's.  Note that we only visualise one timepoint, the first one.  R will automatically show the first timepoint.
 
-```{r}
+```{r,fig.height = 3, fig.width = 4}
 orthographic(data)
 ```
 
@@ -92,7 +92,7 @@ If you're not sure about how to use a certain function, you can call for help:
 
 You will see that there are many more arguments that can be passed to the function `orthographic`.  For example the argument `xyz` allows us to specify where to draw the cross-hairs.  Let's try the following:
 
-```{r}
+```{r,fig.height = 3, fig.width = 4}
 orthographic(data,xyz=c(20,20,30))
 ```
 
@@ -151,21 +151,21 @@ library(Rcmdr)
 
 Let's look at the anatomical data for our first subject.
 
-```{r}
+```{r,fig.height = 3, fig.width = 4}
 sub10159_anat <- readnii("data/sub-10159/sub-10159_T1w_space-MNI152NLin2009cAsym_preproc_reduced.nii.gz")
 ortho2(sub10159_anat)
 ```
 
 And this is an atlas.  Note that this is not the original atlas, but a low-resolution version to work with in this course.  If you want the original atlas: https://team.inria.fr/parietal/18-2/spatial_patterns/spatial-patterns-in-resting-state/
 
-```{r}
+```{r,fig.height = 3, fig.width = 4}
 atlas <- readnii("data/MSDL_rois/msdl_rois_reduced_reshaped.nii")
 ortho2(atlas)
 ```
 
 With a few extra plotting functions using colorbrewer and the `scales` library, we can create a cool overlay of the atlas on the anatomical scan:
 
-```{r}
+```{r,fig.height = 3, fig.width = 4}
 cols <- brewer.pal(11,'Spectral')
 
 ortho2(sub10159_anat,atlas,col.y=cols)
@@ -173,7 +173,7 @@ ortho2(sub10159_anat,atlas,col.y=cols)
 
 Now we want to extract a certain brain region, for example BROCA from the resting state data.
 
-```{r}
+```{r,fig.height = 3, fig.width = 4}
 broca <- ifelse(atlas==29,1,0)
 ortho2(sub10159_anat,broca,xyz=c(20,50,19))
 ```
@@ -209,7 +209,7 @@ lines(raud_ts,col=2)
 
 ### Computing functional connectivity
 
-```{r}
+```{r,fig.height = 3, fig.width = 4}
 together <- data.frame(broca_ts,laud_ts,raud_ts)
 correlations = cor(together)
 levelplot(correlations)
