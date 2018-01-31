@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Intro and setup
 
-This notebook was originally developed for a short course for (graduate level) biostatisticians, as a short introduction to fMRI, as well as for cognitive neuroscientists with little to no knowledge of programming R.  As such, for both groups, some parts will be too easy, some will be rather hard, but this is a statistics workshop, so *on average*, everyone should learn something :-) 
+This notebook was originally developed for a short course for (graduate level) biostatisticians, as a short introduction to fMRI, as well as for cognitive neuroscientists with little to no knowledge of programming R.  As such, for both groups, some parts will be too easy, some will be rather hard, but this is a statistics workshop, so *on average*, it should be fine :-) 
 
 ## Data
 
@@ -119,11 +119,13 @@ plot(data[20,20,30,],type='l')
 
 Now that we know how to read, inspect and visualise fMRI data, it's time for some exercises !
 In the data-folder, there is for each subject 3 nifti-images:
+
 - mask: sub-XXXXX_task-rest_bold_space-MNI152NLin2009cAsym_brainmask.nii.gz
 - rest: sub-XXXXX_task-rest_bold_space-MNI152NLin2009cAsym_preproc.nii.gz
 - anatomical: sub-XXXXX_T1w_preproc.nii.gz
 
 We have looked at the functional rest data.  Now look at the anatomical scan yourself.
+
 - Read in the anatomical data.
 - What are the dimensions of the anatomical data?  Compare with the dimensions of the rest scan.
 - Visualise the data.
@@ -164,10 +166,9 @@ ortho2(atlas)
 With a few extra plotting functions using colorbrewer and the `scales` library, we can create a cool overlay of the atlas on the anatomical scan:
 
 ```{r}
-rf <- colorRampPalette(rev(brewer.pal(11,'Spectral')))
-cols <- rf(39)
+cols <- brewer.pal(11,'Spectral')
 
-ortho2(sub10159_anat,atlas,col.y=alpha(sample(cols),0.5))
+ortho2(sub10159_anat,atlas,col.y=cols)
 ```
 
 Now we want to extract a certain brain region, for example BROCA from the resting state data.
@@ -180,8 +181,9 @@ ortho2(sub10159_anat,broca,xyz=c(20,50,19))
 Now we want to extract the average signal in this area:
 
 ```{r}
-broca_mask <- array(rep(broca,152),dim=c(65,77,49,152))
+broca_mask <- array(rep(broca,152),dim=dim(data))
 broca_ts <- apply(data*broca_mask,4,sum)
+broca_ts <- (broca_ts-mean(broca_ts))/sd(broca_ts)
 plot(broca_ts,type='l')
 ```
 
@@ -190,11 +192,11 @@ Let's write a function to do this:
 ```{r}
 extract_signal <- function(data,atlas,mask_id){
   mask <- ifelse(atlas==mask_id,1,0)
-  expand_mask <- array(rep(mask,152),dim=c(65,77,49,152))
+  expand_mask <- array(rep(mask,dim(data)[4]),dim=dim(data))
   data_masked <- data*expand_mask
-  timeseries <- apply(data_masked,4,sum)
-  timeseries <- (timeseries - mean(timeseries))/sd(timeseries)
-  timeseries
+  ts <- apply(data_masked,4,sum)
+  ts <- (ts - mean(ts))/sd(ts)
+  ts
 }
 ```
 
@@ -208,7 +210,7 @@ lines(raud_ts,col=2)
 ### Computing functional connectivity
 
 ```{r}
-together = matrix(c(broca_ts,laud_ts,raud_ts),ncol=3)
+together <- data.frame(broca_ts,laud_ts,raud_ts)
 correlations = cor(together)
 levelplot(correlations)
 estimate <- partial.cor(together,tests=TRUE)
@@ -216,11 +218,11 @@ levelplot(estimate$R)
 ```
 
 ```{r}
-confounders <- read.table("data/sub-10159/sub-10159_task-rest_bold_confounds.tsv",skip=2)
-fd <- confounders$V6
-fd <- (fd-mean(fd))/sd(fd)
+confounders <- read.table("data/sub-10159/sub-10159_task-rest_bold_confounds.tsv",sep="\t",header=TRUE,na.strings='n/a',colClasses='numeric')
+fd <- confounders$FramewiseDisplacement
 # there is no value for the fd on the first timepoint --> set to 0
-fd <- c(0,fd)
+fd[1] <- 0
+fd <- (fd-mean(fd))/sd(fd)
 plot(laud_ts,type="l")
 lines(raud_ts,col=2)
 lines(fd,col=3,lwd=3)
@@ -289,20 +291,20 @@ Let's look at one subject.
 ```{r}
 datdir <- 'data/CNP_ts/'
 files <- list.files(datdir)
-timeseries <- read.table(paste0(datdir,files[2]),sep=",")
-head(timeseries,2)
+ts <- read.table(paste0(datdir,files[2]),sep=",")
+head(ts,2)
 ```
 
 ```{r}
-plot(timeseries$V1,type="l")
+plot(ts$V1,type="l")
 lines(s,col=2)
 ```
 
 Now let's regress our data onto a random design.
 
 ```{r}
-timeseries$design <- s
-model <- lm("V1 ~ design",data=timeseries)
+ts$design <- s
+model <- lm("V1 ~ design",data=ts)
 summary(model)
 ```
 
@@ -322,11 +324,11 @@ pvals <- c()
 tvals <- c()
 i = 1
 for (file in files){
-  timeseries <- read.table(paste0(datdir,file),sep=",")
-  timeseries$design <- s
-  model <- lm("V1 ~ design",data=timeseries)
-  pvals[i] <- summary(model)$coefficients[2,4]
-  tvals[i] <- summary(model)$coefficients[2,3]
+  ts <- read.table(paste0(datdir,file),sep=",")
+  ts$design <- s
+  model <- lm("V1 ~ design",data=ts)
+  pvals[i] <- summary(model)$coef[2,4]
+  tvals[i] <- summary(model)$coef[2,3]
   i = i+1
 }
 sum(pvals<0.05)/length(pvals)
@@ -353,13 +355,13 @@ create_white <- function(ntp,rho){
 
 ```{r}
 W <- create_white(152,0.3)
-timeseries$design_wh <- W%*% matrix(timeseries$design)
-timeseries$V1_wh <- W %*% matrix(timeseries$V1)
+ts$design_wh <- W%*% matrix(ts$design)
+ts$V1_wh <- W %*% matrix(ts$V1)
 
-model <- lm("V1_wh ~ design_wh",data=timeseries)
+model <- lm("V1_wh ~ design_wh",data=ts)
 summary(model)
-pval <- summary(model)$coefficients[2,4]
-tval <- summary(model)$coefficients[2,3]
+pval <- summary(model)$coef[2,4]
+tval <- summary(model)$coef[2,3]
 print(paste("pvalue: ",pval," - tvalue:",tval))
 ```
 
@@ -370,13 +372,13 @@ pvals <- c()
 tvals <- c()
 i = 1
 for (file in files){
-  timeseries <- read.table(paste0(datdir,file),sep=",")
-  timeseries$design <- s
-  timeseries$design_wh <- W%*% matrix(timeseries$design)
-  timeseries$V1_wh <- W %*% matrix(timeseries$V1)
-  model <- lm("V1_wh ~ design_wh",data=timeseries)
-  pvals[i] <- summary(model)$coefficients[2,4]
-  tvals[i] <- summary(model)$coefficients[2,3]
+  ts <- read.table(paste0(datdir,file),sep=",")
+  ts$design <- s
+  ts$design_wh <- W%*% matrix(ts$design)
+  ts$V1_wh <- W %*% matrix(ts$V1)
+  model <- lm("V1_wh ~ design_wh",data=ts)
+  pvals[i] <- summary(model)$coef[2,4]
+  tvals[i] <- summary(model)$coef[2,3]
   i = i+1
 }
 sum(pvals<0.05)/length(pvals)
